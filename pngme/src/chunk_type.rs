@@ -1,57 +1,83 @@
-use std::{str::FromStr, fmt::Display, string::ParseError};
+use std::{str::{FromStr, from_utf8}, fmt::Display};
+
+#[derive(Debug)]
+struct ChunkTypeError;
 
 #[derive(Debug, PartialEq, Eq)]
 struct ChunkType {
-
+    bytes: [u8; 4]
 }
 
 impl TryFrom<[u8; 4]> for ChunkType {
-    type Error = &'static str;
+    type Error = ChunkTypeError;
 
     fn try_from(value: [u8; 4]) -> Result<Self, Self::Error> {
-        todo!()
+        Ok(ChunkType { bytes: (value) })
     }
 }
 
 impl ChunkType {
     fn bytes(&self) -> [u8; 4] {
-        todo!()
+        self.bytes
     }
 
     fn is_valid(&self) -> bool {
-        todo!()
+        self.is_reserved_bit_valid()
     }
 
     fn is_critical(&self) -> bool {
-        todo!()
+        ((self.bytes[0] >> 5) & 1) == 0
     }
 
     fn is_public(&self) -> bool {
-        todo!()
+        ((self.bytes[1] >> 5) & 1) == 0
     }
 
     fn is_reserved_bit_valid(&self) -> bool {
-        todo!()
+        ((self.bytes[2] >> 5) & 1) == 0
     }
 
     fn is_safe_to_copy(&self) -> bool {
-        todo!()
+        ((self.bytes[3] >> 5) & 1) == 1
     }
 }
 
 impl FromStr for ChunkType {
 
-    type Err = ParseError;
+    type Err = ChunkTypeError;
    
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        todo!()
+        
+        if s.len() != 4 {
+            return Err(ChunkTypeError);
+        }
+
+        let bytes_result: Result<[u8; 4], _> = s.as_bytes().try_into();
+
+        let bytes = match bytes_result {
+            Ok(bytes) => bytes,
+            Err(_) => return Err(ChunkTypeError),
+        };
+        
+        // All parts of string must be upper or lowercase letters
+        if bytes.into_iter().any(|x| !x.is_ascii_alphabetic()) {
+            return Err(ChunkTypeError);
+        }
+
+        // Reserved bit must be zero
+        // if (bytes[2] >> 5) & 1 != 0 {
+        //     return Err(ChunkTypeError);
+        // }
+        
+        Ok(ChunkType { bytes: (bytes) })
     }
 
 }
 
 impl Display for ChunkType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        let string = from_utf8(&self.bytes).unwrap();
+        write!(f, "{}", string)
     }
 }
 

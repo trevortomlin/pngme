@@ -1,10 +1,10 @@
 use std::{str::{FromStr, from_utf8}, fmt::Display};
 
 #[derive(Debug)]
-struct ChunkTypeError;
+pub struct ChunkTypeError;
 
-#[derive(Debug, PartialEq, Eq)]
-struct ChunkType {
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ChunkType {
     bytes: [u8; 4]
 }
 

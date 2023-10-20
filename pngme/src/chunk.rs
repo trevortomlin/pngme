@@ -1,12 +1,23 @@
 use std::convert::TryFrom;
 use std::fmt;
 use std::io::{BufReader, Read};
-use crc::{Crc, CRC_32_ISCSI};
+use crc::{Crc, CRC_32_ISO_HDLC};
 
 use crate::{Error, Result};
 use crate::chunk_type::ChunkType;
 
-pub const checksum_algorithm: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
+pub const checksum_algorithm: Crc<u32> = Crc::<u32>::new(&CRC_32_ISO_HDLC);
+
+#[derive(Debug)]
+pub struct ChunkError;
+
+impl fmt::Display for ChunkError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ChunkError")
+    }
+}
+
+impl std::error::Error for ChunkError {}
 
 /// A validated PNG chunk. See the PNG Spec for more details
 /// http://www.libpng.org/pub/png/spec/1.2/PNG-Structure.html
@@ -22,9 +33,14 @@ impl Chunk {
     pub fn new(chunk_type: ChunkType, data: Vec<u8>) -> Chunk {
         Chunk {
             length: data.len() as u32,
-            chunk_type: chunk_type,
-            chunk_data: data,
-            crc: checksum_algorithm.checksum(data.clone()),
+            chunk_type: chunk_type.clone(),
+            chunk_data: data.clone(),
+            crc: checksum_algorithm.checksum(
+                &chunk_type.bytes()
+                .iter()
+                .cloned()
+                .chain(data.iter().cloned())
+                .collect::<Vec<u8>>()),
         }
     }
 
@@ -64,7 +80,14 @@ impl Chunk {
     /// 3. The data itself *(`length` bytes)*
     /// 4. The CRC of the chunk type and data *(4 bytes)*
     pub fn as_bytes(&self) -> Vec<u8> {
-        todo!()
+        self.length
+            .to_be_bytes()
+            .iter()
+            .chain(&self.chunk_type.bytes())
+            .chain(self.data().iter())
+            .chain(self.crc.to_be_bytes().iter())
+            .copied()
+            .collect::<Vec<u8>>()
     }
 }
 
@@ -72,7 +95,40 @@ impl TryFrom<&[u8]> for Chunk {
     type Error = Error;
 
     fn try_from(bytes: &[u8]) -> Result<Self> {
-        todo!()
+
+        let length = u32::from_be_bytes(bytes[0..4].try_into().unwrap());
+        let chunk_type = ChunkType::try_from(TryInto::<[u8; 4]>::try_into(&bytes[4..8]).unwrap()).unwrap();
+        let chunk_data = bytes[8..bytes.len()-4].to_vec();
+        let crc = u32::from_be_bytes(bytes[bytes.len()-4..].try_into().unwrap());
+
+        let expected_crc = checksum_algorithm.checksum(
+            &chunk_type.bytes()
+            .iter()
+            .cloned()
+            .chain(chunk_data.iter().cloned())
+            .collect::<Vec<u8>>());
+
+        if length != chunk_data.len() as u32
+           || crc != expected_crc {
+            print!("{}, {}", crc, expected_crc);
+            return Err(Box::new(ChunkError));
+        }
+
+        Ok(Chunk{
+            length: length,
+            chunk_type: chunk_type,
+            chunk_data: chunk_data,
+            crc: crc,
+        })
+
+        // Ok(
+        //     Chunk {
+        //         length: u32::from_be_bytes(bytes[0..4].try_into().unwrap()),
+        //         chunk_type: ChunkType::try_from(TryInto::<[u8; 4]>::try_into(&bytes[4..8]).unwrap()).unwrap(),
+        //         chunk_data: bytes[8..bytes.len()-4].to_vec(),
+        //         crc: u32::from_be_bytes(bytes[bytes.len()-4..].try_into().unwrap())
+        //     }
+        // )
     }
 }
 

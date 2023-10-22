@@ -61,13 +61,28 @@ impl Png {
     /// Searches for a `Chunk` with the specified `chunk_type` and removes the first
     /// matching `Chunk` from this `Png` list of chunks.
     pub fn remove_chunk(&mut self, chunk_type: &str) -> Result<Chunk> {
-        Ok(
-            self.chunks.remove(
-                self.chunks.iter()
-                .position(|x| x.chunk_type().to_string() == chunk_type)
-                .expect("Needle Not Found")
-            )
-        )
+
+        // println!("len of chunks: {}", self.chunks.len());
+        
+        // println!(" searching for {}", chunk_type);
+        // for chunk in self.chunks() {
+        //     println!("{}", chunk.chunk_type().to_string());
+        //     println!("  {}", chunk.chunk_type().to_string() == chunk_type);
+        // }
+
+        // Ok(
+        //     self.chunks.remove(
+        //         self.chunks.iter()
+        //         .position(|x| x.chunk_type().to_string() == chunk_type)
+        //         .expect("Needle Not Found")
+        //     )
+        // )
+
+        match self.chunks.iter()
+                .position(|x| x.chunk_type().to_string() == chunk_type) {
+                    Some(res) => Ok(self.chunks.remove(res)),
+                    None => Err(Box::new(PNGError)),
+                }
     }
 
     /// The header of this PNG.
@@ -83,10 +98,15 @@ impl Png {
     /// Searches for a `Chunk` with the specified `chunk_type` and returns the first
     /// matching `Chunk` from this `Png`.
     pub fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
-        Some(&self.chunks[
-        self.chunks.iter()
-                .position(|x| x.chunk_type().to_string() == chunk_type)
-                .expect("Needle Not Found")])
+        // Some(&self.chunks[
+        // self.chunks.iter()
+        //         .position(|x| x.chunk_type().to_string() == chunk_type)
+        //         .expect("Needle Not Found")])
+        match self.chunks.iter()
+                .position(|x| x.chunk_type().to_string() == chunk_type) {
+                    Some(res) => Some(&self.chunks[res]),
+                    None => None,
+                }
     }
 
     /// Returns this `Png` as a byte sequence.
@@ -108,7 +128,44 @@ impl TryFrom<&[u8]> for Png {
     type Error = Error;
 
     fn try_from(bytes: &[u8]) -> Result<Png> {
-        todo!()
+        let header: [u8; 8] = bytes[0..8].try_into().unwrap();
+
+        if header != Png::STANDARD_HEADER {
+            return Err(Box::new(PNGError));
+        }
+
+        //println!("{:?}", header);
+
+        //println!("len of bytes: {}", bytes.len());
+        println!("{:?}", &bytes[0..20]);
+        println!("{:?}", &bytes[bytes.len() - 20..]);
+
+        let mut chunks: Vec<Chunk> = Vec::new();
+
+        let mut i: usize = 8;
+
+        while i < bytes.len() {
+            let length: u32 = u32::from_be_bytes(bytes[i..i+4].try_into().unwrap());
+            let chunk_type: [u8; 4] = bytes[i+4..i+8].try_into().unwrap();
+            let data: Vec<u8> = bytes[i+8..i+8+length as usize].to_vec();
+
+            let chunk_type_result = ChunkType::try_from(chunk_type);
+
+            if chunk_type_result.is_err() {
+                return Err(Box::new(PNGError));
+            }
+
+            let chunk_type: ChunkType = chunk_type_result.unwrap();
+
+            let chunk = Chunk::new(chunk_type, data);
+    
+            chunks.push(chunk);
+
+            i += 4 + 4 + length as usize + 4;
+        }
+
+        Ok(Png::from_chunks(chunks))
+    
     }
 }
 

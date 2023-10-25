@@ -97,14 +97,14 @@ impl Png {
 
     /// Searches for a `Chunk` with the specified `chunk_type` and returns the first
     /// matching `Chunk` from this `Png`.
-    pub fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
+    pub fn chunk_by_type(&mut self, chunk_type: &str) -> Option<&mut Chunk> {
         // Some(&self.chunks[
         // self.chunks.iter()
         //         .position(|x| x.chunk_type().to_string() == chunk_type)
         //         .expect("Needle Not Found")])
         match self.chunks.iter()
                 .position(|x| x.chunk_type().to_string() == chunk_type) {
-                    Some(res) => Some(&self.chunks[res]),
+                    Some(res) => Some(&mut self.chunks[res]),
                     None => None,
                 }
     }
@@ -137,8 +137,8 @@ impl TryFrom<&[u8]> for Png {
         //println!("{:?}", header);
 
         //println!("len of bytes: {}", bytes.len());
-        println!("{:?}", &bytes[0..20]);
-        println!("{:?}", &bytes[bytes.len() - 20..]);
+        // println!("{:?}", &bytes[0..20]);
+        // println!("{:?}", &bytes[bytes.len() - 20..]);
 
         let mut chunks: Vec<Chunk> = Vec::new();
 
@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn test_chunk_by_type() {
-        let png = testing_png();
+        let mut png = testing_png();
         let chunk = png.chunk_by_type("FrSt").unwrap();
         assert_eq!(&chunk.chunk_type().to_string(), "FrSt");
         assert_eq!(&chunk.data_as_string().unwrap(), "I am the first chunk");

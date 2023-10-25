@@ -118,7 +118,7 @@ fn main() -> Result<()> {
 
     }
 
-    if let Some(matches) = matches.subcommand_matches("remove") {
+    if let Some(matches) = matches.subcommand_matches("print") {
         let path = matches.get_one::<String>("path")
         .expect("'path' is required and parsing will fail if its missing")
         .clone();

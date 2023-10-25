@@ -59,6 +59,10 @@ impl Chunk {
         &self.chunk_data
     }
 
+    pub fn set_data(&mut self, data: Vec<u8>) {
+        self.chunk_data = data;
+    }
+
     /// The CRC of this chunk
     pub fn crc(&self) -> u32 {
         self.crc
